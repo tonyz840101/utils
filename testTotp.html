@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=utf-8 />
+  <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
+  <title>TOTP Test</title>
+</head>
+
+<body>
+    <form name="addForm">
+        <br/>
+        key name<br/>
+        <input type="text" name="keyName" size="30"></input>
+        <br/>
+        secret<br/>
+        <input type="text" name="secret" size="85"></input>
+        <br/>
+        <input type="button" value="Add" onClick="addKey();"/>
+    </form>
+    <br/>
+    <div id="display">
+    </div>
+    <br/>
+    <form name="deleteForm">
+        <input type="text" name="keyName" size="30"></input>
+        <br/>
+        <input type="button" value="Delete" onClick="deleteKey();"/>
+        <input type="button" value="Wipe" onClick="wipeAll();"/>
+    </form>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.3.1/otpauth.umd.min.js"></script>
+    <script type="text/javascript">
+        function TotpManager() {
+            this.keys = {};
+
+            this.display = () => {
+                const display = document.getElementById("display");
+                display.innerHTML = "";
+                let seconds = -1;
+                for (const keyName in this.keys) {
+                    const key = this.keys[keyName];
+                    const code = key.generate();
+                    if (seconds === -1)
+                        seconds = key.period - (Math.floor(Date.now() / 1000) % key.period);
+                    display.innerHTML += `<span> &nbsp&nbsp&nbsp&nbsp [ ${code} ] &nbsp&nbsp | &nbsp&nbsp ${keyName}</span><br/>`;
+                }
+                if (seconds !== -1) {
+                    display.innerHTML += `<br/>Next refresh in ${seconds} seconds`;
+                }
+            }
+            this.addKey = (keyName, secret) => {
+                let name = keyName || "";
+                if (this.keys[keyName] !== undefined)
+                    throw new Error("Key already exists");
+                if (name === "") {
+                    name = "key" + Object.keys(this.keys).length;
+                    console.log("Key name is empty, using", name);
+                }
+                if (secret === "") {
+                    throw new Error("Secret is required");
+                }
+
+                this.keys[name] = new OTPAuth.TOTP({
+                    issuer: "ACME",
+                    label: "AzureDiamond",
+                    algorithm: "SHA1",
+                    digits: 6,
+                    period: 30,
+                    secret, 
+                });
+                console.log("Key added", name);
+                window.localStorage.setItem("totp", this.export());
+                this.display();
+            }
+
+            this.deleteKey = (keyName) => {
+                delete this.keys[keyName];
+                window.localStorage.setItem("totp", this.export());
+                this.display();
+            }
+            this.wipeAll = () => {
+                this.keys = {};
+                window.localStorage.setItem("totp", this.export());
+                this.display();
+            }
+
+            this.export = () => {
+                let content = {};
+                for (const keyName in this.keys) {
+                    const key = this.keys[keyName];
+                    content[keyName] = key.toString();
+                }
+                return JSON.stringify(content);
+            }
+            this.import = (content) => {
+                const keys = JSON.parse(content);
+                for (const keyName in keys) {
+                    const key = keys[keyName];
+                    this.keys[keyName] = OTPAuth.URI.parse(key);
+                }
+
+                window.localStorage.setItem("totp", this.export());
+                this.display();
+            }
+
+            this.intervalId = setInterval(() => {
+                this.display();
+            }, 1000);
+
+            const content = window.localStorage.getItem("totp");
+            if (content !== null) {
+                this.import(content);
+            }
+        }
+
+        const totpManager = new TotpManager();
+
+        function addKey() {
+            try {
+                const keyName = document.addForm.keyName.value;
+                const secret = document.addForm.secret.value;
+                totpManager.addKey(keyName, secret);
+                document.addForm.keyName.value = "";
+                document.addForm.secret.value = "";
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function deleteKey() {
+            const keyName = document.deleteForm.keyName.value;
+            document.deleteForm.keyName.value = "";
+            totpManager.deleteKey(keyName);
+        }
+
+        function wipeAll() {
+            totpManager.wipeAll();
+            totpManager.display();
+        }
+
+    </script>
+ </body>
+ 
+ </html>
