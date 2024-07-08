@@ -25,7 +25,9 @@
         <input type="text" name="keyName" size="30"></input>
         <br/>
         <input type="button" value="Delete" onClick="deleteKey();"/>
-        <input type="button" value="Wipe" onClick="wipeAll();"/>
+        <br/>
+        <br/>
+        <input type="button" value="Wipe all" onClick="wipeAll();"/>
     </form>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.3.1/otpauth.umd.min.js"></script>
@@ -79,9 +81,11 @@
                 this.display();
             }
             this.wipeAll = () => {
+                const exported = this.export();
                 this.keys = {};
                 window.localStorage.setItem("totp", this.export());
                 this.display();
+                return exported;
             }
 
             this.export = () => {
@@ -134,8 +138,10 @@
         }
 
         function wipeAll() {
-            totpManager.wipeAll();
-            totpManager.display();
+            if (confirm("Are you sure you want to wipe all keys?")) {
+                let exported = totpManager.wipeAll();
+                console.log("Exported", exported);
+            }
         }
 
     </script>
